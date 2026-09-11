@@ -1,0 +1,29 @@
+# Entorno virtual
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Credenciales y tokens (Graph API, MSAL cache, etc.)
+*.env
+.env
+token_cache.bin
+*.token
+secrets.json
+credentials.json
+
+# Datos reales de estudiantes (nunca deben subirse)
+*resultados*.xlsx
+*resultados*.json
+data/real/
+
+# Mac
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
