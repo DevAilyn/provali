@@ -6,58 +6,81 @@ Retorna una lista de dicts {id_estudiante, archivos}.
 import os
 import unicodedata
 
-CARPETA_EXCLUIDA = "Plantillas"
-ARCHIVOS_PLANTILLA_EXCLUIDOS = {
+CARPETA_PLANTILLAS = "Plantillas"
+
+# nombres ya normalizados (minúsculas, NFC)
+ARCHIVOS_DEFAULT_PLANTILLAS = {
     "carga de documentos.pdf",
+    "formato de seguimiento.pdf",
     "plan de formación y seguimientos uniminuto virtual .docx",
 }
 
-def leer_estudiantes(ruta_periodo: str) -> list[dict]:
-    # ruta_periodo: ruta completa a la carpeta del periodo (ej. .../2026-18)
-    resultado = []
 
+def nfc(nombre: str) -> str:
+    # macOS puede separar las tildes (NFD); las unificamos
+    return unicodedata.normalize("NFC", nombre)
+
+
+def normalizar(nombre: str) -> str:
+    return nfc(nombre).strip().lower()
+
+
+def es_basura(nombre: str) -> bool:
+    # ocultos del sistema y bloqueos de Office
+    return nombre.startswith((".", "~$")) or nombre == "Icon\r"
+
+
+def listar_archivos(carpeta: str, excluir: set[str] = frozenset()) -> list[str]:
+    archivos = []
+    for nombre in sorted(os.listdir(carpeta)):
+        if es_basura(nombre) or normalizar(nombre) in excluir:
+            continue
+        if not os.path.isdir(os.path.join(carpeta, nombre)):
+            archivos.append(nfc(nombre))
+    return archivos
+
+
+def leer_estudiantes(ruta_periodo: str) -> list[dict]:
     if not os.path.isdir(ruta_periodo):
         print(f"Ruta no encontrada: {ruta_periodo}")
-        return resultado
+        return []
 
-    for id_estudiante in os.listdir(ruta_periodo):
-        carpeta_estudiante = os.path.join(ruta_periodo, id_estudiante)
+    resultado = []
+    for id_estudiante in sorted(os.listdir(ruta_periodo)):
+        carpeta = os.path.join(ruta_periodo, id_estudiante)
+        if es_basura(id_estudiante) or not os.path.isdir(carpeta):
+            continue
 
-        if not os.path.isdir(carpeta_estudiante):
-            continue  # ignora archivos sueltos en la raíz del periodo
+        # listar_archivos ya ignora subcarpetas, incluida Plantillas
+        archivos = listar_archivos(carpeta)
 
-        archivos = []
-        for nombre in os.listdir(carpeta_estudiante):
-            ruta_archivo = os.path.join(carpeta_estudiante, nombre)
+        # archivos que el estudiante subió dentro de Plantillas
+        plantillas = os.path.join(carpeta, CARPETA_PLANTILLAS)
+        if os.path.isdir(plantillas):
+            archivos += listar_archivos(plantillas, ARCHIVOS_DEFAULT_PLANTILLAS)
 
-            if nombre == CARPETA_EXCLUIDA:
-                for nombre_plantilla in os.listdir(ruta_archivo):
-                    clave = unicodedata.normalize("NFC", nombre_plantilla).lower()
-                    if clave in ARCHIVOS_PLANTILLA_EXCLUIDOS:
-                        continue  # ignora los archivos por defecto de Plantillas
-                    archivos.append(nombre_plantilla)
-                continue
-
-            if not os.path.isdir(ruta_archivo):
-                archivos.append(nombre)
-
-        resultado.append({
-            "id_estudiante": id_estudiante,
-            "archivos": archivos
-        })
+        resultado.append({"id_estudiante": id_estudiante, "archivos": archivos})
 
     return resultado
 
 
 if __name__ == "__main__":
-    RUTA = (
+    BASE = (
         "/Users/Ailyn/Library/CloudStorage/"
         "OneDrive-uniminuto.edu/"
-        "G-Practicas Profesionales Rectoria Virtual - ADMINISTRACION DE EMPRESAS/"
-        "2026-18"
+        "G-Practicas Profesionales Rectoria Virtual - ADMINISTRACION DE EMPRESAS"
     )
-    estudiantes = leer_estudiantes(RUTA)
-    print(f"Estudiantes encontrados: {len(estudiantes)}")
-    for e in estudiantes[:3]:
-        print(f"\nID: {e['id_estudiante']}")
-        print(f"Archivos: {e['archivos']}")
+    periodo = input("Periodo a procesar (ej. 2026-18): ").strip()
+    ruta = os.path.join(BASE, periodo)
+
+    estudiantes = leer_estudiantes(ruta)
+    vacias = sum(1 for e in estudiantes if not e["archivos"])
+    total_archivos = sum(len(e["archivos"]) for e in estudiantes)
+
+    # solo conteos para no exponer datos personales
+    print(f"\nEstudiantes encontrados: {len(estudiantes)}")
+    print(f"Carpetas vacías: {vacias}")
+    print(f"Archivos totales: {total_archivos}")
+
+    #ensayo
+    print([e["id_estudiante"] for e in estudiantes if not e["archivos"]][:5])
