@@ -4,4 +4,4 @@
 
 **Decisión:** Leer la estructura de carpetas de estudiantes directamente desde la carpeta sincronizada de OneDrive en el sistema de archivos local, en vez de consultar Microsoft Graph API.
 
-**Razón:** El tenant institucional de uniminuto.edu bloquea el acceso a Graph API, por lo que no es posible registrar una aplicación ni obtener permisos para consultar OneDrive/SharePoint por esa vía.
+**Razón:** El tenant institucional bloquea el acceso de aplicaciones a los sitios de SharePoint de equipo vía Graph API. Se registró una app con autenticación delegada, pero todas las variantes de permisos probadas devolvieron 403 o requerían aprobación de un administrador.
