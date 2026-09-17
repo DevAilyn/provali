@@ -51,15 +51,19 @@ def leer_estudiantes(ruta_periodo: str) -> list[dict]:
         if es_basura(id_estudiante) or not os.path.isdir(carpeta):
             continue
 
-        # listar_archivos ya ignora subcarpetas, incluida Plantillas
-        archivos = listar_archivos(carpeta)
+        try:
+            # listar_archivos ya ignora subcarpetas, incluida Plantillas
+            archivos = listar_archivos(carpeta)
 
-        # archivos que el estudiante subió dentro de Plantillas
-        plantillas = os.path.join(carpeta, CARPETA_PLANTILLAS)
-        if os.path.isdir(plantillas):
-            archivos += listar_archivos(plantillas, ARCHIVOS_DEFAULT_PLANTILLAS)
+            # archivos que el estudiante subió dentro de Plantillas
+            plantillas = os.path.join(carpeta, CARPETA_PLANTILLAS)
+            if os.path.isdir(plantillas):
+                archivos += listar_archivos(plantillas, ARCHIVOS_DEFAULT_PLANTILLAS)
 
-        resultado.append({"id_estudiante": id_estudiante, "archivos": archivos})
+            resultado.append({"id_estudiante": id_estudiante, "archivos": archivos, "error": False})
+        except OSError as e:
+            print(f"Error leyendo {id_estudiante}: {type(e).__name__}")
+            resultado.append({"id_estudiante": id_estudiante, "archivos": [], "error": True})
 
     return resultado
 
@@ -74,13 +78,12 @@ if __name__ == "__main__":
     ruta = os.path.join(BASE, periodo)
 
     estudiantes = leer_estudiantes(ruta)
-    vacias = sum(1 for e in estudiantes if not e["archivos"])
+    vacias = sum(1 for e in estudiantes if not e["archivos"] and not e["error"])
+    con_error = sum(1 for e in estudiantes if e["error"])
     total_archivos = sum(len(e["archivos"]) for e in estudiantes)
 
-    # solo conteos para no exponer datos personales
     print(f"\nEstudiantes encontrados: {len(estudiantes)}")
     print(f"Carpetas vacías: {vacias}")
+    print(f"Carpetas con error de lectura: {con_error}")
     print(f"Archivos totales: {total_archivos}")
 
-    #ensayo
-    print([e["id_estudiante"] for e in estudiantes if not e["archivos"]][:5])
