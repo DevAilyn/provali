@@ -1,24 +1,70 @@
-from evaluator import evaluar_estudiante, filtrar_estudiantes
+"""
+Pruebas del Evaluador (test_evaluator.py)
+"""
 
-print("Caso 1: Aprendizaje, todo completo salvo ARL")
-r = evaluar_estudiante("1001", {"doc_identidad", "afiliacion_salud", "hoja_vida"}, "aprendizaje")
-for k, v in r.items():
-    print(f"  {k}: {v}")
+from evaluator import evaluar_estudiante, filtrar_estudiantes, cargar_ids_incluir
 
-print("\nCaso 2: correccion manual pisa el resultado calculado")
-r = evaluar_estudiante(
-    "1006",
-    {"doc_identidad", "afiliacion_salud", "hoja_vida"},
-    "aprendizaje",
-    correcciones={"afiliacion_salud": "rechazado_pendiente"},
-)
-assert r["afiliacion_salud"] == "rechazado_pendiente"
-print("  ok, la correccion pisa el resultado")
 
-print("\nCaso 3: filtro de inclusion")
-estudiantes = [{"id_estudiante": "1001"}, {"id_estudiante": "1002"}]
-assert len(filtrar_estudiantes(estudiantes, None)) == 2
-assert len(filtrar_estudiantes(estudiantes, {"1001"})) == 1
-print("  ok, filtro funciona con y sin lista")
+def test_aprendizaje_completo_salvo_arl():
+    r = evaluar_estudiante("1001", {"doc_identidad", "afiliacion_salud", "hoja_vida"}, "aprendizaje")
+    assert r == {
+        "doc_identidad": "cumplido",
+        "afiliacion_salud": "cumplido",
+        "afiliacion_arl": "faltante",
+        "hoja_vida": "cumplido",
+        "carta_presentacion": "no_verificable_por_programa",
+        "carta_autorizacion": "no_aplica",
+        "certificado_laboral": "no_aplica",
+    }
 
-print("\nTodo paso.")
+
+def test_correccion_manual_pisa_el_resultado_calculado():
+    r = evaluar_estudiante(
+        "1006",
+        {"doc_identidad", "afiliacion_salud", "hoja_vida"},
+        "aprendizaje",
+        correcciones={"afiliacion_salud": "rechazado_pendiente"},
+    )
+    assert r["afiliacion_salud"] == "rechazado_pendiente"
+
+
+def test_correccion_pisa_incluso_si_el_requisito_no_fue_detectado():
+    r = evaluar_estudiante(
+        "1007",
+        set(),
+        "aprendizaje",
+        correcciones={"afiliacion_arl": "rechazado_pendiente"},
+    )
+    assert r["afiliacion_arl"] == "rechazado_pendiente"
+
+
+def test_requisito_condicional_cumplido_si_encontrado():
+    r = evaluar_estudiante("1002", {"afiliacion_arl"}, "emprendimiento")
+    assert r["afiliacion_arl"] == "cumplido"
+
+
+def test_requisito_condicional_revisar_si_no_encontrado():
+    r = evaluar_estudiante("1003", set(), "emprendimiento")
+    assert r["afiliacion_arl"] == "revisar"
+
+
+def test_requisito_externo_siempre_revisar():
+    r = evaluar_estudiante("1004", {"carta_autorizacion"}, "emprendimiento")
+    assert r["carta_autorizacion"] == "revisar"
+
+
+def test_modalidad_no_reconocida_todo_a_revisar():
+    r = evaluar_estudiante("1005", {"doc_identidad"}, "modalidad_inexistente")
+    assert all(estado == "revisar" for estado in r.values())
+
+
+def test_filtro_de_inclusion():
+    estudiantes = [{"id_estudiante": "1001"}, {"id_estudiante": "1002"}]
+    assert len(filtrar_estudiantes(estudiantes, None)) == 2
+    assert len(filtrar_estudiantes(estudiantes, {"1001"})) == 1
+
+
+def test_cargar_ids_incluir_desde_csv(tmp_path):
+    ruta = tmp_path / "ids_revisar_hoy.csv"
+    ruta.write_text("id_estudiante\n1001\n1002\n\n", encoding="utf-8")
+    assert cargar_ids_incluir(str(ruta)) == {"1001", "1002"}
