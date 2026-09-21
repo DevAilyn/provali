@@ -6,8 +6,9 @@ Muestra solo conteos, nunca nombres de archivo ni de estudiantes.
 import os
 from dotenv import load_dotenv
 
-from detector import leer_estudiantes
-from classifier import clasificar_lista, TIPOS, TIPOS_INFORMATIVOS
+from process_validation.detector import leer_estudiantes
+from process_validation.classifier import clasificar_lista, TIPOS, TIPOS_INFORMATIVOS
+from process_validation.evaluator import cargar_correcciones_y_extranjero
 
 load_dotenv()
 
@@ -17,6 +18,11 @@ def main():
     if not base:
         print("Falta ONEDRIVE_BASE_PATH en el .env")
         return
+
+    ruta_correcciones = os.getenv("CSV_CORRECCIONES_PATH")
+    correcciones_por_id, ids_en_extranjero = {}, set()
+    if ruta_correcciones and os.path.isfile(ruta_correcciones):
+        correcciones_por_id, ids_en_extranjero = cargar_correcciones_y_extranjero(ruta_correcciones)
 
     periodo = input("Periodo a procesar (ej. 2026-18): ").strip()
     ruta = os.path.join(base, periodo)
@@ -53,6 +59,10 @@ def main():
     print("\nConteo por tipo de documento:")
     for tipo, cantidad in conteo_tipos.items():
         print(f"  {tipo}: {cantidad}")
+
+    if correcciones_por_id or ids_en_extranjero:
+        print(f"\nCorrecciones cargadas: {len(correcciones_por_id)} estudiantes con al menos un requisito a corregir")
+        print(f"Estudiantes marcados en el extranjero: {len(ids_en_extranjero)}")
 
 
 if __name__ == "__main__":

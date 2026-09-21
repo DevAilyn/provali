@@ -2,7 +2,7 @@
 Pruebas del Evaluador (test_evaluator.py)
 """
 
-from evaluator import evaluar_estudiante, filtrar_estudiantes, cargar_ids_incluir
+from process_validation.evaluator import evaluar_estudiante, filtrar_estudiantes, cargar_ids_incluir
 
 
 def test_aprendizaje_completo_salvo_arl():
@@ -23,7 +23,7 @@ def test_correccion_manual_pisa_el_resultado_calculado():
         "1006",
         {"doc_identidad", "afiliacion_salud", "hoja_vida"},
         "aprendizaje",
-        correcciones={"afiliacion_salud": "rechazado_pendiente"},
+        correcciones={"afiliacion_salud"},
     )
     assert r["afiliacion_salud"] == "rechazado_pendiente"
 
@@ -33,7 +33,7 @@ def test_correccion_pisa_incluso_si_el_requisito_no_fue_detectado():
         "1007",
         set(),
         "aprendizaje",
-        correcciones={"afiliacion_arl": "rechazado_pendiente"},
+        correcciones={"afiliacion_arl"},
     )
     assert r["afiliacion_arl"] == "rechazado_pendiente"
 
@@ -68,3 +68,13 @@ def test_cargar_ids_incluir_desde_csv(tmp_path):
     ruta = tmp_path / "ids_revisar_hoy.csv"
     ruta.write_text("id_estudiante\n1001\n1002\n\n", encoding="utf-8")
     assert cargar_ids_incluir(str(ruta)) == {"1001", "1002"}
+
+
+def test_requisito_marcado_para_corregir_da_rechazado_pendiente():
+    r = evaluar_estudiante("1008", {"hoja_vida"}, "aprendizaje", correcciones={"hoja_vida"})
+    assert r["hoja_vida"] == "rechazado_pendiente"
+
+
+def test_en_extranjero_fuerza_no_aplica_en_afiliacion_arl():
+    r = evaluar_estudiante("1009", {"afiliacion_arl"}, "aprendizaje", en_extranjero=True)
+    assert r["afiliacion_arl"] == "no_aplica"

@@ -64,6 +64,39 @@ MATRIZ = {
 }
 
 
+# columna de la base real -> clave de requisito usada en MATRIZ
+COLUMNAS_A_REQUISITO = {
+    "HOJA VIDA": "hoja_vida",
+    "DOC IDENTIDAD": "doc_identidad",
+    "AFIL. SALUD": "afiliacion_salud",
+    "AFIL. ARL": "afiliacion_arl",
+    "CARTA O MEMORANDO DE AUTORIZACIÓN - APROBACIÓN": "carta_autorizacion",
+    "CERTIFICADO LABORAL CON FUNCIONES": "certificado_laboral",
+}
+
+
+def cargar_correcciones_y_extranjero(ruta: str) -> tuple[dict[str, set[str]], set[str]]:
+    correcciones = {}
+    en_extranjero = set()
+    with open(ruta, newline="", encoding="utf-8") as f:
+        lector = csv.DictReader(f)
+        for fila in lector:
+            id_estudiante = fila["ID ESTUDIANTE"].strip()
+            if not id_estudiante:
+                continue
+            if "extranjero" in fila.get("OBSERVACIONES", "").lower():
+                en_extranjero.add(id_estudiante)
+            requisitos_a_corregir = {
+                requisito
+                for columna, requisito in COLUMNAS_A_REQUISITO.items()
+                if fila.get(columna, "").strip() == "Corregir"
+            }
+            if requisitos_a_corregir:
+                correcciones[id_estudiante] = requisitos_a_corregir
+
+    return correcciones, en_extranjero
+
+
 def _evaluar_requisito(tipo_regla: str, encontrado: bool) -> str:
     if tipo_regla == "no_aplica":
         return "no_aplica"
@@ -82,17 +115,20 @@ def evaluar_estudiante(
     id_estudiante: str,
     tipos_detectados: set[str],
     modalidad: str,
-    correcciones: dict[str, str] | None = None,
+    correcciones: set[str] | None = None,
+    en_extranjero: bool = False,
 ) -> dict[str, str]:
     if modalidad not in MATRIZ:
-        # modalidad vacia o no reconocida: todo queda para revision humana
         return {req: "revisar" for req in next(iter(MATRIZ.values()))}
 
-    correcciones = correcciones or {}
+    correcciones = correcciones or set()
     resultado = {}
     for requisito, tipo_regla in MATRIZ[modalidad].items():
+        if requisito == "afiliacion_arl" and en_extranjero:
+            resultado[requisito] = "no_aplica"
+            continue
         if requisito in correcciones:
-            resultado[requisito] = correcciones[requisito]
+            resultado[requisito] = "rechazado_pendiente"
             continue
         encontrado = requisito in tipos_detectados
         resultado[requisito] = _evaluar_requisito(tipo_regla, encontrado)

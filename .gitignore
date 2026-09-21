@@ -29,3 +29,5 @@ data/real/
 .vscode/
 .idea/
 PROJECT_STATUS.md
+datos_locales/
+diagnostico.py

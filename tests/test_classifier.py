@@ -2,7 +2,7 @@
 Pruebas del Clasificador (test_classifier.py)
 """
 
-from classifier import normalizar, es_plantilla_default, clasificar, clasificar_lista
+from process_validation.classifier import normalizar, es_plantilla_default, clasificar, clasificar_lista
 
 
 def test_normalizar_quita_tildes_y_mayusculas():
