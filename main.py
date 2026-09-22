@@ -8,11 +8,14 @@ from dotenv import load_dotenv
 
 from process_validation.detector import leer_estudiantes
 from process_validation.classifier import clasificar_lista, TIPOS, TIPOS_INFORMATIVOS
+
 from process_validation.evaluator import (
     cargar_correcciones_y_extranjero,
     cargar_modalidades,
     resolver_modalidad,
     evaluar_estudiante,
+    cargar_ids_incluir,
+    filtrar_estudiantes,
 )
 
 load_dotenv()
@@ -37,6 +40,14 @@ def main():
     estudiantes = leer_estudiantes(ruta)
     if not estudiantes:
         return
+
+    ruta_ids_revisar = os.getenv("CSV_IDS_REVISAR_HOY_PATH")
+    if ruta_ids_revisar and os.path.isfile(ruta_ids_revisar):
+        respuesta = input("¿Filtrar solo por los IDs de ids_revisar_hoy.csv? (si/no): ").strip().lower()
+        if respuesta == "si":
+            ids_incluir = cargar_ids_incluir(ruta_ids_revisar)
+            estudiantes = filtrar_estudiantes(estudiantes, ids_incluir)
+            print(f"Filtro activado: procesando solo {len(estudiantes)} estudiante(s) del CSV de revisión")
 
     conteo_tipos = {tipo: 0 for tipo in TIPOS + TIPOS_INFORMATIVOS}
     conteo_tipos["plantilla_descartada"] = 0

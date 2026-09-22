@@ -108,7 +108,6 @@ COLUMNAS_A_REQUISITO = {
     "CERTIFICADO LABORAL CON FUNCIONES": "certificado_laboral",
 }
 
-
 def _normalizar_encabezado(texto: str) -> str:
     return re.sub(r"\s+", " ", texto).strip()
 
@@ -228,7 +227,7 @@ def evaluar_estudiante(
 
 
 def cargar_ids_incluir(ruta: str) -> set[str]:
-    with open(ruta, newline="", encoding="utf-8") as f:
+    with open(ruta, newline="", encoding="utf-8-sig") as f:
         lector = csv.DictReader(f)
         return {fila["id_estudiante"].strip() for fila in lector if fila["id_estudiante"].strip()}
 
