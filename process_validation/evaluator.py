@@ -4,6 +4,7 @@ por modalidad y devuelve el estado de cada requisito.
 """
 
 import csv
+import re
 import unicodedata
 
 # tipo de regla por requisito, según modalidad
@@ -90,7 +91,7 @@ def _normalizar_modalidad(texto: str | None) -> str | None:
         return "laboral"
     if "INTERNACIONAL" in texto:
         return "internacional"
-    if "SEMILLERO" in texto:
+    if "SEMILLERO" in texto or "INVESTIGACION" in texto:
         return "semillero"
     if "CONVENIO" in texto:
         return "convenio_especial"
@@ -108,24 +109,38 @@ COLUMNAS_A_REQUISITO = {
 }
 
 
+def _normalizar_encabezado(texto: str) -> str:
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def _leer_filas_csv(ruta: str) -> list[dict]:
+    with open(ruta, newline="", encoding="utf-8-sig") as f:
+        muestra = f.read(4096)
+        f.seek(0)
+        delimitador = ";" if muestra.count(";") > muestra.count(",") else ","
+        lector = csv.DictReader(f, delimiter=delimitador)
+        return [
+            {_normalizar_encabezado(k): v for k, v in fila.items() if k and _normalizar_encabezado(k)}
+            for fila in lector
+        ]
+
+
 def cargar_correcciones_y_extranjero(ruta: str) -> tuple[dict[str, set[str]], set[str]]:
     correcciones = {}
     en_extranjero = set()
-    with open(ruta, newline="", encoding="utf-8") as f:
-        lector = csv.DictReader(f)
-        for fila in lector:
-            id_estudiante = fila["ID ESTUDIANTE"].strip()
-            if not id_estudiante:
-                continue
-            if "extranjero" in fila.get("OBSERVACIONES", "").lower():
-                en_extranjero.add(id_estudiante)
-            requisitos_a_corregir = {
-                requisito
-                for columna, requisito in COLUMNAS_A_REQUISITO.items()
-                if fila.get(columna, "").strip() == "Corregir"
-            }
-            if requisitos_a_corregir:
-                correcciones[id_estudiante] = requisitos_a_corregir
+    for fila in _leer_filas_csv(ruta):
+        id_estudiante = fila["ID ESTUDIANTE"].strip()
+        if not id_estudiante:
+            continue
+        if "extranjero" in fila.get("OBSERVACIONES", "").lower():
+            en_extranjero.add(id_estudiante)
+        requisitos_a_corregir = {
+            requisito
+            for columna, requisito in COLUMNAS_A_REQUISITO.items()
+            if fila.get(columna, "").strip() == "Corregir"
+        }
+        if requisitos_a_corregir:
+            correcciones[id_estudiante] = requisitos_a_corregir
 
     return correcciones, en_extranjero
 
@@ -136,13 +151,11 @@ def _inferir_por_documentos(tipos_detectados: set[str]) -> str | None:
 
 def cargar_modalidades(ruta: str) -> dict[str, str]:
     modalidades = {}
-    with open(ruta, newline="", encoding="utf-8") as f:
-        lector = csv.DictReader(f)
-        for fila in lector:
-            id_estudiante = fila["ID ESTUDIANTE"].strip()
-            valor = fila.get("MODALIDAD SELECCIONADA", "").strip()
-            if id_estudiante and valor:
-                modalidades[id_estudiante] = valor
+    for fila in _leer_filas_csv(ruta):
+        id_estudiante = fila["ID ESTUDIANTE"].strip()
+        valor = fila.get("MODALIDAD SELECCIONADA", "").strip()
+        if id_estudiante and valor:
+            modalidades[id_estudiante] = valor
     return modalidades
 
 
