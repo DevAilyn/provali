@@ -4,6 +4,7 @@ por modalidad y devuelve el estado de cada requisito.
 """
 
 import csv
+import re
 
 # tipo de regla por requisito, según modalidad
 MATRIZ = {
@@ -74,13 +75,26 @@ COLUMNAS_A_REQUISITO = {
     "CERTIFICADO LABORAL CON FUNCIONES": "certificado_laboral",
 }
 
+def _normalizar_encabezado(texto: str) -> str:
+    return re.sub(r"\s+", " ", texto).strip()
+
+
+def _leer_filas_csv(ruta: str) -> list[dict]:
+    with open(ruta, newline="", encoding="utf-8-sig") as f:
+        muestra = f.read(4096)
+        f.seek(0)
+        delimitador = ";" if muestra.count(";") > muestra.count(",") else ","
+        lector = csv.DictReader(f, delimiter=delimitador)
+        return [
+            {_normalizar_encabezado(k): v for k, v in fila.items() if k and _normalizar_encabezado(k)}
+            for fila in lector
+        ]
+
 
 def cargar_correcciones_y_extranjero(ruta: str) -> tuple[dict[str, set[str]], set[str]]:
     correcciones = {}
     en_extranjero = set()
-    with open(ruta, newline="", encoding="utf-8") as f:
-        lector = csv.DictReader(f)
-        for fila in lector:
+    for fila in _leer_filas_csv(ruta):
             id_estudiante = fila["ID ESTUDIANTE"].strip()
             if not id_estudiante:
                 continue
@@ -137,7 +151,7 @@ def evaluar_estudiante(
 
 
 def cargar_ids_incluir(ruta: str) -> set[str]:
-    with open(ruta, newline="", encoding="utf-8") as f:
+    with open(ruta, newline="", encoding="utf-8-sig") as f:
         lector = csv.DictReader(f)
         return {fila["id_estudiante"].strip() for fila in lector if fila["id_estudiante"].strip()}
 
