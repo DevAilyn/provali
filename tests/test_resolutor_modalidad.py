@@ -45,3 +45,21 @@ def test_csv_real_tiene_prioridad_sobre_forms_y_documentos():
 def test_normaliza_mayusculas_y_tildes():
     resultado = resolver_modalidad(set(), "CONVENIO ESPECIAL", None)
     assert resultado == ("convenio_especial", "csv_real", None)
+
+from process_validation.evaluator import cargar_modalidades
+
+
+def test_cargar_modalidades_desde_csv(tmp_path):
+    ruta = tmp_path / "base_real.csv"
+    ruta.write_text(
+        "ID ESTUDIANTE,MODALIDAD SELECCIONADA\n"
+        "ST001,Contrato de Aprendizaje\n"
+        "ST002,\n"
+        "ST003,Laboral\n",
+        encoding="utf-8",
+    )
+    resultado = cargar_modalidades(str(ruta))
+    assert resultado == {
+        "ST001": "Contrato de Aprendizaje",
+        "ST003": "Laboral",
+    }
