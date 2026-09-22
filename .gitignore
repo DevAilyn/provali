@@ -21,6 +21,7 @@ credentials.json
 *resultados*.xlsx
 *resultados*.json
 data/real/
+datos_locales/
 
 # Mac
 .DS_Store
@@ -31,3 +32,4 @@ data/real/
 PROJECT_STATUS.md
 datos_locales/
 diagnostico.py
+
