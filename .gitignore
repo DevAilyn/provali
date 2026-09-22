@@ -21,6 +21,7 @@ credentials.json
 *resultados*.xlsx
 *resultados*.json
 data/real/
+datos_locales/
 
 # Mac
 .DS_Store
