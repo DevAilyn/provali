@@ -17,6 +17,13 @@ from process_validation.evaluator import (
     cargar_ids_incluir,
     filtrar_estudiantes,
 )
+from process_validation.output import (
+    construir_fila,
+    fila_con_error,
+    construir_resultados,
+    escribir_json,
+    escribir_excel,
+)
 
 load_dotenv()
 
@@ -60,12 +67,19 @@ def main():
     conteo_fuentes = {"csv_real": 0, "forms": 0, "documentos": 0}
     conteo_estados = {}
 
+    filas = []
+
     for estudiante in estudiantes:
+        id_estudiante = estudiante["id_estudiante"]
+
         if estudiante["error"]:
             con_error += 1
+            filas.append(fila_con_error(id_estudiante, "OSError"))
             continue
+
         if not estudiante["archivos"]:
             vacias += 1
+            filas.append(construir_fila(id_estudiante, 0, 0, None, "sin_resolver", None, False, {}))
             continue
 
         clasificados = clasificar_lista(estudiante["archivos"])
@@ -74,15 +88,21 @@ def main():
             conteo_tipos[item["tipo"]] += 1
 
         tipos_detectados = {item["tipo"] for item in clasificados}
-        id_estudiante = estudiante["id_estudiante"]
+        sin_clasificar = sum(1 for item in clasificados if item["tipo"] == "no_clasificado")
 
         modalidad, fuente, observacion = resolver_modalidad(
             tipos_detectados,
             modalidades_por_id.get(id_estudiante),
         )
 
+        en_extranjero = id_estudiante in ids_en_extranjero
+
         if modalidad is None:
             sin_modalidad += 1
+            filas.append(construir_fila(
+                id_estudiante, len(clasificados), sin_clasificar,
+                None, fuente, observacion, en_extranjero, {},
+            ))
             continue
 
         conteo_fuentes[fuente] += 1
@@ -91,10 +111,15 @@ def main():
             tipos_detectados,
             modalidad,
             correcciones_por_id.get(id_estudiante),
-            id_estudiante in ids_en_extranjero,
+            en_extranjero,
         )
         for estado in resultado.values():
             conteo_estados[estado] = conteo_estados.get(estado, 0) + 1
+
+        filas.append(construir_fila(
+            id_estudiante, len(clasificados), sin_clasificar,
+            modalidad, fuente, observacion, en_extranjero, resultado,
+        ))
 
     print(f"\nEstudiantes encontrados: {len(estudiantes)}")
     print(f"Carpetas vacías: {vacias}")
@@ -115,6 +140,11 @@ def main():
     print("\nConteo por estado de requisito (todos los estudiantes con modalidad):")
     for estado, cantidad in sorted(conteo_estados.items()):
         print(f"  {estado}: {cantidad}")
+
+    resultados = construir_resultados(periodo, filas)
+    ruta_json = escribir_json(resultados, f"salidas/{periodo}/resultados.json")
+    ruta_excel = escribir_excel(resultados, f"salidas/{periodo}/resultados.xlsx")
+    print(f"\nResultados escritos en:\n  {ruta_json}\n  {ruta_excel}")
 
 
 if __name__ == "__main__":
