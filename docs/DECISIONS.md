@@ -35,3 +35,29 @@
 **Decisión:** main.py lee ONEDRIVE_BASE_PATH desde el archivo .env (usando python-dotenv), en vez de tenerlo hardcodeado en el código. El periodo (ej. 2026-18) se sigue pidiendo por input() en cada corrida.
 
 **Razón:** El repo es público, así que la ruta local de OneDrive no debe quedar expuesta en el código. El periodo no es un dato sensible y cambia cada corte, así que no vale la pena moverlo a configuración.
+
+## ADR-003 — Excel de resultados: archivo nuevo, no copia del real
+
+**Fecha:** 23 de septiembre de 2026
+**Contexto:** US04 pedía "escribir sobre una copia del Excel de seguimiento".
+
+**Decisión:** en vez de copiar el .xlsx real y llenar sus columnas, el programa
+genera un archivo nuevo (`resultados.xlsx`) con una fila por estudiante y sus
+propias columnas de estado.
+
+**Por qué:**
+- Copiar el real exigiría leer un .xlsx con encabezados sucios (espacios
+  dobles, saltos de línea) y posibles celdas combinadas — mismo problema que
+  ya resolvimos para el CSV en US03/US14, pero ahora con formato de Excel.
+- El resultado del programa se mezclaría con lo que ya escribieron personas
+  (columna "Corregir", OBSERVACIONES), dificultando comparar automático vs.
+  manual — justo lo que necesitan US07 y US08.
+- Un archivo nuevo nunca toca el archivo real, lo que reduce el riesgo sobre
+  datos de estudiantes a prácticamente cero.
+- La misma estructura sirve para el Excel y para resultados.json (ver
+  process_validation/output.py), así que no hay dos fuentes de verdad.
+
+**Trade-off aceptado:** el resultado no tiene el formato exacto que usa hoy
+el área de prácticas. Si en el futuro se necesita ese formato exacto para
+entregar, se puede agregar como paso adicional que traduzca resultados.json
+a las columnas del Excel real — sin tocar el motor de evaluación.
