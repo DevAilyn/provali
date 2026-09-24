@@ -61,3 +61,34 @@ propias columnas de estado.
 el área de prácticas. Si en el futuro se necesita ese formato exacto para
 entregar, se puede agregar como paso adicional que traduzca resultados.json
 a las columnas del Excel real — sin tocar el motor de evaluación.
+
+## 2026-09-23 — US05/US06 se descartan como lectura de CSV de Forms; se leen columnas ya cruzadas en la base real
+
+**Decisión:** el programa ya no lee los CSV exportados de Forms (preinscripción,
+inducción) ni resuelve duplicados por fecha. En su lugar, lee dos columnas
+adicionales de la misma base de seguimiento real que ya usa
+cargar_correcciones_y_extranjero() (CSV_CORRECCIONES_PATH): PREINSCRIPCIÓN
+e INDUCCIÓN (ambas Sí/No).
+
+**Razón:** Graph sigue bloqueado para Forms (ver decisión del 22 sept), así que
+la alternativa siempre fue exportar CSV manualmente. Al construir US05/US06 se
+volvió evidente que el cruce entre Forms y la base real (por ID de estudiante)
+había que hacerlo de todos modos para poder usarlo en el área de prácticas —
+y ese cruce ya se hace directamente en Excel (BUSCARV/CONTAR.SI) antes de
+exportar la base real a CSV. Programar en Python el parseo de encabezados
+largos de Forms y la resolución de respuestas duplicadas por rango de fechas
+duplicaba un trabajo que ya se resuelve una vez, a mano, en el mismo archivo
+que el programa ya lee.
+
+**Trade-off aceptado:** se pierde la automatización de V1 y V2 como
+verificaciones independientes de Forms. A cambio, se elimina una fuente de
+datos completa (dos CSV menos que mantener, sin lógica de fechas ni
+duplicados en el código), y V1/V2 se resuelven exactamente igual de bien
+porque dependen de que la usuaria mantenga el cruce actualizado en Excel,
+que es el mismo lugar donde ya corrige documentos y modalidad manualmente.
+
+**Riesgo a vigilar:** el cruce en Excel usa BUSCARV, que trae la primera
+coincidencia del rango, no la más reciente. Si un estudiante respondió Forms
+dos veces, hay que ordenar los datos de Forms por fecha de finalización
+(más reciente primero) antes de pegarlos en la hoja de cruce, o BUSCARV podría
+traer una respuesta vieja.

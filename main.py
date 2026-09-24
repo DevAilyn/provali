@@ -12,6 +12,7 @@ from process_validation.classifier import clasificar_lista, TIPOS, TIPOS_INFORMA
 from process_validation.evaluator import (
     cargar_correcciones_y_extranjero,
     cargar_modalidades,
+    cargar_verificaciones_forms,
     resolver_modalidad,
     evaluar_estudiante,
     cargar_ids_incluir,
@@ -37,9 +38,11 @@ def main():
     ruta_correcciones = os.getenv("CSV_CORRECCIONES_PATH")
     correcciones_por_id, ids_en_extranjero = {}, set()
     modalidades_por_id = {}
+    verificaciones_forms_por_id = {}
     if ruta_correcciones and os.path.isfile(ruta_correcciones):
         correcciones_por_id, ids_en_extranjero = cargar_correcciones_y_extranjero(ruta_correcciones)
         modalidades_por_id = cargar_modalidades(ruta_correcciones)
+        verificaciones_forms_por_id = cargar_verificaciones_forms(ruta_correcciones)
 
     periodo = input("Periodo a procesar (ej. 2026-18): ").strip()
     ruta = os.path.join(base, periodo)
@@ -71,6 +74,9 @@ def main():
 
     for estudiante in estudiantes:
         id_estudiante = estudiante["id_estudiante"]
+        verificaciones = verificaciones_forms_por_id.get(id_estudiante, {})
+        preinscripcion = verificaciones.get("preinscripcion")
+        induccion = verificaciones.get("induccion")
 
         if estudiante["error"]:
             con_error += 1
@@ -79,7 +85,10 @@ def main():
 
         if not estudiante["archivos"]:
             vacias += 1
-            filas.append(construir_fila(id_estudiante, 0, 0, None, "sin_resolver", None, False, {}))
+            filas.append(construir_fila(
+                id_estudiante, 0, 0, None, "sin_resolver", None, False, {},
+                preinscripcion=preinscripcion, induccion=induccion,
+            ))
             continue
 
         clasificados = clasificar_lista(estudiante["archivos"])
@@ -102,6 +111,7 @@ def main():
             filas.append(construir_fila(
                 id_estudiante, len(clasificados), sin_clasificar,
                 None, fuente, observacion, en_extranjero, {},
+                preinscripcion=preinscripcion, induccion=induccion,
             ))
             continue
 
@@ -119,6 +129,7 @@ def main():
         filas.append(construir_fila(
             id_estudiante, len(clasificados), sin_clasificar,
             modalidad, fuente, observacion, en_extranjero, resultado,
+            preinscripcion=preinscripcion, induccion=induccion,
         ))
 
     print(f"\nEstudiantes encontrados: {len(estudiantes)}")
@@ -132,6 +143,13 @@ def main():
     if correcciones_por_id or ids_en_extranjero:
         print(f"\nCorrecciones cargadas: {len(correcciones_por_id)} estudiantes con al menos un requisito a corregir")
         print(f"Estudiantes marcados en el extranjero: {len(ids_en_extranjero)}")
+
+    if verificaciones_forms_por_id:
+        for etiqueta, campo in (("Preinscripción", "preinscripcion"), ("Inducción", "induccion")):
+            si = sum(1 for f in filas if f[campo] == "SI")
+            no = sum(1 for f in filas if f[campo] == "NO")
+            vacios = sum(1 for f in filas if f[campo] is None)
+            print(f"\n{etiqueta} -> SI: {si}, NO: {no}, sin dato: {vacios}")
 
     print(f"\nEstudiantes sin modalidad resuelta: {sin_modalidad}")
     print("Modalidad resuelta por fuente:")

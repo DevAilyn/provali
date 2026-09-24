@@ -32,6 +32,21 @@ def test_construir_resultados_cuenta_solo_carpetas_vacias_confirmadas():
     assert resultados["resumen"]["con_error"] == 1
 
 
+def test_construir_fila_convierte_preinscripcion_induccion():
+    fila = construir_fila(
+        "ST007", 1, 0, "laboral", "csv_real", None, False, {},
+        preinscripcion=True, induccion=False,
+    )
+    assert fila["preinscripcion"] == "SI"
+    assert fila["induccion"] == "NO"
+
+
+def test_construir_fila_deja_preinscripcion_induccion_en_none_por_defecto():
+    fila = construir_fila("ST008", 1, 0, "laboral", "csv_real", None, False, {})
+    assert fila["preinscripcion"] is None
+    assert fila["induccion"] is None
+
+
 def test_escribir_json_crea_archivo_legible(tmp_path):
     fila = construir_fila("ST005", 1, 0, "laboral", "csv_real", None, False, {"doc_identidad": "cumplido"})
     resultados = construir_resultados("2026-99", [fila])
@@ -40,6 +55,17 @@ def test_escribir_json_crea_archivo_legible(tmp_path):
     with open(ruta, encoding="utf-8") as f:
         leido = json.load(f)
     assert leido["estudiantes"][0]["id_estudiante"] == "ST005"
+
+
+def test_escribir_json_deja_null_cuando_no_hay_dato(tmp_path):
+    fila = construir_fila("ST009", 1, 0, "laboral", "csv_real", None, False, {})
+    resultados = construir_resultados("2026-99", [fila])
+    ruta = escribir_json(resultados, tmp_path / "resultados.json")
+
+    with open(ruta, encoding="utf-8") as f:
+        leido = json.load(f)
+    assert leido["estudiantes"][0]["preinscripcion"] is None
+    assert leido["estudiantes"][0]["induccion"] is None
 
 
 def test_escribir_excel_crea_una_fila_por_estudiante(tmp_path):
