@@ -2,7 +2,15 @@
 Pruebas del Evaluador (test_evaluator.py)
 """
 
-from process_validation.evaluator import evaluar_estudiante, filtrar_estudiantes, cargar_ids_incluir
+import pytest
+
+from process_validation.evaluator import (
+    evaluar_estudiante,
+    filtrar_estudiantes,
+    cargar_ids_incluir,
+    cargar_verificaciones_forms,
+    _normalizar_si_no,
+)
 
 
 def test_aprendizaje_completo_salvo_arl():
@@ -78,3 +86,71 @@ def test_requisito_marcado_para_corregir_da_rechazado_pendiente():
 def test_en_extranjero_fuerza_no_aplica_en_afiliacion_arl():
     r = evaluar_estudiante("1009", {"afiliacion_arl"}, "aprendizaje", en_extranjero=True)
     assert r["afiliacion_arl"] == "no_aplica"
+
+
+def test_cargar_verificaciones_forms_si_no_y_celda_vacia(tmp_path):
+    ruta = tmp_path / "base_real.csv"
+    ruta.write_text(
+        "ID ESTUDIANTE,PREINSCRIPCIÓN,INDUCCIÓN\n"
+        "ST001,Sí,No\n"
+        "ST002,,Sí\n",
+        encoding="utf-8",
+    )
+    resultado = cargar_verificaciones_forms(str(ruta))
+    assert resultado == {
+        "ST001": {"preinscripcion": True, "induccion": False},
+        "ST002": {"preinscripcion": None, "induccion": True},
+    }
+
+
+def test_cargar_verificaciones_forms_celda_vacia_no_es_false(tmp_path):
+    ruta = tmp_path / "base_real.csv"
+    ruta.write_text(
+        "ID ESTUDIANTE,PREINSCRIPCIÓN,INDUCCIÓN\n"
+        "ST003,,\n",
+        encoding="utf-8",
+    )
+    resultado = cargar_verificaciones_forms(str(ruta))
+    assert resultado["ST003"]["preinscripcion"] is None
+    assert resultado["ST003"]["induccion"] is None
+    assert resultado["ST003"]["preinscripcion"] is not False
+    assert resultado["ST003"]["induccion"] is not False
+
+
+def test_cargar_verificaciones_forms_tolera_mayusculas_y_tildes(tmp_path):
+    ruta = tmp_path / "base_real.csv"
+    ruta.write_text(
+        "ID ESTUDIANTE,PREINSCRIPCIÓN,INDUCCIÓN\n"
+        "ST004,si,NO\n"
+        "ST005,SI,no\n",
+        encoding="utf-8",
+    )
+    resultado = cargar_verificaciones_forms(str(ruta))
+    assert resultado == {
+        "ST004": {"preinscripcion": True, "induccion": False},
+        "ST005": {"preinscripcion": True, "induccion": False},
+    }
+
+
+def test_cargar_verificaciones_forms_ignora_fila_sin_id(tmp_path):
+    ruta = tmp_path / "base_real.csv"
+    ruta.write_text(
+        "ID ESTUDIANTE,PREINSCRIPCIÓN,INDUCCIÓN\n"
+        ",Sí,Sí\n"
+        "ST006,Sí,Sí\n",
+        encoding="utf-8",
+    )
+    resultado = cargar_verificaciones_forms(str(ruta))
+    assert resultado == {"ST006": {"preinscripcion": True, "induccion": True}}
+
+def test_normalizar_si_no_con_none():
+    assert _normalizar_si_no(None) is None
+
+
+@pytest.mark.parametrize("entrada, esperado", [
+    ("SI", True), ("Sí", True), ("si", True), (" SI ", True),
+    ("NO", False), ("no", False),
+    ("", None), ("Pendiente", None), ("#N/A", None),
+])
+def test_normalizar_si_no_variantes(entrada, esperado):
+    assert _normalizar_si_no(entrada) is esperado

@@ -158,6 +158,31 @@ def cargar_modalidades(ruta: str) -> dict[str, str]:
     return modalidades
 
 
+def _normalizar_si_no(valor: str | None) -> bool | None:
+    valor = (valor or "").strip()
+    if not valor:
+        return None
+    valor = _normalizar_texto(valor)
+    if valor == "SI":
+        return True
+    if valor == "NO":
+        return False
+    return None
+
+
+def cargar_verificaciones_forms(ruta: str) -> dict[str, dict[str, bool | None]]:
+    verificaciones = {}
+    for fila in _leer_filas_csv(ruta):
+        id_estudiante = fila["ID ESTUDIANTE"].strip()
+        if not id_estudiante:
+            continue
+        verificaciones[id_estudiante] = {
+            "preinscripcion": _normalizar_si_no(fila.get("PREINSCRIPCIÓN", "")),
+            "induccion": _normalizar_si_no(fila.get("INDUCCIÓN", "")),
+        }
+    return verificaciones
+
+
 def resolver_modalidad(
     tipos_detectados: set[str],
     modalidad_csv: str | None,
