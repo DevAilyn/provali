@@ -20,6 +20,12 @@ def _orden_requisitos() -> list[str]:
 ORDEN_REQUISITOS = _orden_requisitos()
 
 
+def _convertir_si_no(valor: bool | None) -> str | None:
+    if valor is None:
+        return None
+    return "SI" if valor else "NO"
+
+
 def construir_fila(
     id_estudiante: str,
     total_archivos: int,
@@ -29,8 +35,10 @@ def construir_fila(
     observacion_modalidad: str | None,
     en_extranjero: bool,
     estados: dict[str, str],
+    preinscripcion: bool | None = None,
+    induccion: bool | None = None,
 ) -> dict:
-  
+
     return {
         "id_estudiante": id_estudiante,
         "carpeta_vacia": total_archivos == 0,
@@ -38,6 +46,8 @@ def construir_fila(
         "fuente_modalidad": fuente_modalidad,
         "observacion_modalidad": observacion_modalidad or "",
         "en_extranjero": en_extranjero,
+        "preinscripcion": _convertir_si_no(preinscripcion),
+        "induccion": _convertir_si_no(induccion),
         # un requisito ausente es un fallo del flujo, no un no_aplica
         "requisitos": {req: estados.get(req, "revisar") for req in ORDEN_REQUISITOS},
         "archivos_sin_clasificar": archivos_sin_clasificar,
@@ -53,6 +63,8 @@ def fila_con_error(id_estudiante: str, tipo_error: str) -> dict:
         "fuente_modalidad": "",
         "observacion_modalidad": "",
         "en_extranjero": None,
+        "preinscripcion": None,
+        "induccion": None,
         "requisitos": {req: "revisar" for req in ORDEN_REQUISITOS},
         "archivos_sin_clasificar": 0,
         "error": tipo_error,
@@ -115,6 +127,14 @@ def _si_no(valor: bool | None) -> str:
     return "Sí" if valor else "No"
 
 
+def _color_si_no(valor: str | None) -> str | None:
+    if valor == "SI":
+        return COLORES_ESTADO["cumplido"]
+    if valor == "NO":
+        return COLORES_ESTADO["faltante"]
+    return None
+
+
 def escribir_excel(resultados: dict, ruta: str | Path) -> Path:
     ruta = Path(ruta)
     ruta.parent.mkdir(parents=True, exist_ok=True)
@@ -125,7 +145,7 @@ def escribir_excel(resultados: dict, ruta: str | Path) -> Path:
 
     encabezados = (
         ["ID estudiante", "Carpeta vacía", "Modalidad", "Fuente modalidad",
-         "Observación modalidad", "En extranjero"]
+         "Observación modalidad", "En extranjero", "Preinscripción", "Inducción"]
         + [ETIQUETAS_REQUISITOS.get(req, req) for req in ORDEN_REQUISITOS]
         + ["Archivos sin clasificar", "Error"]
     )
@@ -133,15 +153,22 @@ def escribir_excel(resultados: dict, ruta: str | Path) -> Path:
     for celda in hoja[1]:
         celda.font = Font(bold=True)
 
-    primera_col_req = 7
+    col_preinscripcion = 7
+    col_induccion = 8
+    primera_col_req = 9
     for est in resultados["estudiantes"]:
         hoja.append(
             [est["id_estudiante"], _si_no(est["carpeta_vacia"]), est["modalidad"] or "",
-             est["fuente_modalidad"], est["observacion_modalidad"], _si_no(est["en_extranjero"])]
+             est["fuente_modalidad"], est["observacion_modalidad"], _si_no(est["en_extranjero"]),
+             est["preinscripcion"] or "", est["induccion"] or ""]
             + [est["requisitos"][req] for req in ORDEN_REQUISITOS]
             + [est["archivos_sin_clasificar"], est["error"] or ""]
         )
         fila = hoja.max_row
+        for col, valor in ((col_preinscripcion, est["preinscripcion"]), (col_induccion, est["induccion"])):
+            color = _color_si_no(valor)
+            if color:
+                hoja.cell(row=fila, column=col).fill = _relleno(color)
         for i, req in enumerate(ORDEN_REQUISITOS):
             color = COLORES_ESTADO.get(est["requisitos"][req])
             if color:
