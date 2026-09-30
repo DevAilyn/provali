@@ -92,3 +92,27 @@ coincidencia del rango, no la más reciente. Si un estudiante respondió Forms
 dos veces, hay que ordenar los datos de Forms por fecha de finalización
 (más reciente primero) antes de pegarlos en la hoja de cruce, o BUSCARV podría
 traer una respuesta vieja.
+
+## ADR-004 — Leer la base real en .xlsx y salida con su mismo diseño
+
+**Fecha:** 30 de septiembre de 2026
+**Contexto:** al probar la salida de US04 con datos reales, salía demasiado "revisar", el diseño no se parecía a la base del área y la modalidad inferida por documentos confundía. Retoma la opción que ADR-003 dejó abierta.
+
+**Decisión:**
+- **Entrada:** el programa lee la base real en .xlsx directo desde OneDrive (`BASE_SEGUIMIENTO_XLSX` en `.env`), hoja = periodo (ej. `2026-23`), en modo solo lectura (`data_only=True`) y sobre una copia temporal. Reemplaza la exportación a CSV (`CSV_CORRECCIONES_PATH`) cuando los tests pasen.
+- **Filtro:** los estudiantes con `NO CUMPLE` en la columna DOCUMENTO no se procesan ni salen en la salida.
+- **ESTADO `OK`:** la fila se copia tal cual de la base, sin evaluar.
+- **Diseño de salida:** mismas columnas y orden de la hoja del periodo, más `CARPETA VACÍA` (`SI` verde / `NO` rojo) al lado de `ID ESTUDIANTE`. Se copian las reglas de formato condicional de la base.
+- **Traducción de estados (solo en la salida Excel):** `cumplido` → `SI`, `faltante` → `NO`, `no_aplica` → `NO APLICA` (azul), `rechazado_pendiente` → `CORREGIR`, `revisar` y `no_verificable_por_programa` → celda vacía.
+- **Valor humano gana:** si la base ya tiene un valor escrito en un documento, se conserva; el programa solo llena celdas vacías.
+- **Carpeta vacía:** los documentos quedan vacíos, salvo los que dan `NO APLICA` según la modalidad.
+- **Modalidad:** la columna MODALIDAD muestra solo lo que dice la base. La inferencia por documentos (fuente 3 de US03) queda solo por dentro, para decidir `NO APLICA`, y nunca se escribe. Forms deja de ser fuente de modalidad (se elimina la fuente 2).
+- **Inducción y preinscripción:** se copian de las fórmulas de la base. US05 y US06 salen del alcance tal como estaban planteadas.
+- **Datos personales:** la salida incluye nombres y correos, igual que la base. Se acepta porque `salidas/` está fuera de git.
+
+**Por qué:**
+- El área trabaja filtrando su propia base; una salida con el mismo diseño se revisa sin reaprender nada.
+- Leer el .xlsx quita un paso manual y trae los resultados de las fórmulas de inducción y preinscripción.
+- Los estados internos del motor no cambian (tests, `resultados.json` y la futura API siguen iguales). La traducción vive solo en `output.py`.
+
+**Trade-off aceptado:** el programa ahora depende del diseño de columnas de la base del área. Si el área cambia un encabezado, hay que ajustar el mapeo.
