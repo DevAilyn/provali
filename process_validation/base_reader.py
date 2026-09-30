@@ -21,8 +21,16 @@ class BaseSeguimiento:
     encabezados: list
     # id -> {encabezado normalizado: valor}, en el orden de la hoja
     filas: dict
-    excluidos_no_cumple: int = 0
+    ids_no_cumple: set = field(default_factory=set)
     ids_duplicados: list = field(default_factory=list)
+
+    @property
+    def excluidos_no_cumple(self):
+        return len(self.ids_no_cumple)
+
+    @property
+    def claves(self):
+        return [normalizar_texto(h) for h in self.encabezados]
 
     def es_ok(self, id_estudiante):
         fila = self.filas.get(id_estudiante, {})
@@ -83,7 +91,7 @@ def cargar_base_xlsx(ruta, hoja):
         if id_estudiante is None:
             continue
         if normalizar_texto(registro.get(COL_DOCUMENTO)) == VALOR_NO_CUMPLE:
-            base.excluidos_no_cumple += 1
+            base.ids_no_cumple.add(id_estudiante)
             continue
         if id_estudiante in base.filas:
             # se queda la primera fila; el duplicado se reporta para revisión humana
